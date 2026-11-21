@@ -21,8 +21,14 @@ def validate(doc):
 			frappe.throw(_("Only 6 to 10 digit numbers are allowed in Bank Account Number."))
 
 
+def validate_party(doc, event=None):
+	company = doc.company if doc.doctype == "Employee" else frappe.defaults.get_user_default("Company")
+	if is_enabled(company):
+		validate(doc)
+
+
 def bank_account_validation(doc, event):
-	if is_enabled(doc.company) and doc.file_format == "ABA":
+	if is_enabled(doc.company) and doc.file_format != "-None-":
 		if doc.apca_number:
 			pattern = re.compile(r"^\d{6}$")
 			if not pattern.match(doc.apca_number):

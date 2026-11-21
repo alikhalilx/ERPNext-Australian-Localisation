@@ -4,19 +4,24 @@
 import frappe
 from frappe.model.document import Document
 
+from erpnext_australian_localisation.overrides.company import require_enabled
+
 
 class AULocalisationSettings(Document):
 	def validate(self):
 		old = self.get_doc_before_save()
-		if [(r.company, r.reporting_period, r.reporting_method) for r in self.bas_reporting_period] != [
-			(r.company, r.reporting_period, r.reporting_method)
-			for r in (old.bas_reporting_period if old else [])
-		]:
-			from erpnext_australian_localisation.erpnext_australian_localisation.doctype.au_bas_report.au_bas_report import (
-				bas_unavailable,
-			)
-
-			bas_unavailable()
+		previous = (
+			{r.company: (r.reporting_period, r.reporting_method) for r in old.bas_reporting_period}
+			if old
+			else {}
+		)
+		companies = set()
+		for row in self.bas_reporting_period:
+			if row.company in companies:
+				frappe.throw(frappe._("Only one BAS reporting period is allowed per company."))
+			companies.add(row.company)
+			if previous.get(row.company) != (row.reporting_period, row.reporting_method):
+				require_enabled(row.company)
 
 	def on_update(self):
 		frappe.cache.delete_keys("bootinfo")

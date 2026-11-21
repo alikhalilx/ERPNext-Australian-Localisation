@@ -4,11 +4,12 @@
 # import frappe
 from frappe.model.document import Document
 
+from erpnext_australian_localisation.overrides.company import require_company_record, require_enabled
+
 
 class AUSimplerBASReportSetup(Document):
 	def validate(self):
-		from erpnext_australian_localisation.erpnext_australian_localisation.doctype.au_bas_report.au_bas_report import (
-			bas_unavailable,
-		)
-
-		bas_unavailable()
+		require_enabled(self.company)
+		for account in [self.account_1a, self.account_1b, *(row.account for row in self.accounts_g1)]:
+			if account:
+				require_company_record("Account", account, self.company)

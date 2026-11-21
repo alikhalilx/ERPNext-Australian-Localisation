@@ -1,26 +1,28 @@
 frappe.ui.form.on("Payment Entry", {
+	company(frm) {
+		return frm.trigger("refresh");
+	},
 	async refresh(frm) {
-		if (!(await au_localisation.form_enabled(frm))) return;
-		if (frm.doc.docstatus !== 1) return;
-		const format =
-			frm.doc.payment_type === "Receive" ? "Payment Receipt" : "Remittance Advice";
-		if (
-			["Pay", "Receive"].includes(frm.doc.payment_type) &&
-			frm.doc.party_type !== "Employee"
-		) {
-			frm.add_custom_button(
-				__(format),
-				() => {
-					const query = new URLSearchParams({
-						doctype: frm.doctype,
-						name: frm.doc.name,
-						format
-					});
-					window.open("/printview?" + query.toString(), "_blank", "noopener");
-				},
-				__("Print")
-			);
+		const enabled = await au_localisation.form_enabled(frm);
+		if (frm._au_print_doc) {
+			frm.print_doc = frm._au_print_doc;
+			frm.meta.default_print_format = frm._au_previous_print_format;
+			delete frm._au_print_doc;
+			delete frm._au_previous_print_format;
 		}
+		if (enabled) {
+			frm._au_print_doc = frm.print_doc;
+			frm._au_previous_print_format = frm.meta.default_print_format;
+			frm.print_doc = () => {
+				frm.meta.default_print_format = get_print_format(frm);
+				$(".print-preview-sidebar").find('[data-fieldname="print_format"] input').val("");
+				frappe.route_options = { frm };
+				frappe.set_route("print", frm.doctype, frm.doc.name);
+			};
+		}
+		if (!enabled) return;
+
+		if (frm.doc.docstatus !== 1) return;
 
 		if (frm.doc.party_type === "Customer") {
 			frm.add_custom_button(__("Send Payment Receipt"), () => {
@@ -85,3 +87,10 @@ frappe.ui.form.on("Payment Entry", {
 		}
 	}
 });
+
+function get_print_format(frm) {
+	if (frm.doc.party_type === "Employee") return null;
+	if (frm.doc.payment_type === "Pay") return "Remittance Advice";
+	if (frm.doc.payment_type === "Receive") return "Payment Receipt";
+	return null;
+}

@@ -1,10 +1,14 @@
 import frappe
 
 from erpnext_australian_localisation.overrides.company import is_enabled
+from erpnext_australian_localisation.overrides.invoices import (
+	create_au_bas_entries,
+	generate_bas_labels,
+)
 
 
-def validate(doc, event):
-	if is_enabled(doc.company):
+def on_update(doc, event):
+	if doc.docstatus == 0 and is_enabled(doc.company):
 		tax_template = "AU Non Capital Purchase - GST"
 
 		if doc.taxes:
@@ -24,3 +28,43 @@ def validate(doc, event):
 						"tax_code",
 					)
 					i.au_tax_code = tax_code
+					i.save()
+
+
+def before_submit(doc, event):
+	if not is_enabled(doc.company):
+		return
+	result = []
+
+	sum_depends_on = ["gst_offset_basis", "gst_offset_amount"]
+
+	for expense in doc.expenses:
+		account = frappe.db.get_value(
+			"Expense Claim Account",
+			{"parent": expense.expense_type, "company": doc.company},
+			"default_account",
+		)
+		result.extend(
+			generate_bas_labels(
+				"Subjected",
+				"Deductible Purchase",
+				expense.au_tax_code,
+				account,
+				round(expense.sanctioned_amount, 2),
+				sum_depends_on[0],
+			)
+		)
+
+	for tax in doc.taxes:
+		result.extend(
+			generate_bas_labels(
+				"Tax Account",
+				"Deductible Purchase",
+				tax.au_tax_code,
+				tax.account_head,
+				round(tax.tax_amount, 2),
+				sum_depends_on[1],
+			)
+		)
+
+	create_au_bas_entries(doc.doctype, doc.name, doc.company, doc.posting_date, result, sum_depends_on)

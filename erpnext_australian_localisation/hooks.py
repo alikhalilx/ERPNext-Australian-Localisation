@@ -111,6 +111,7 @@ doctype_js = {
 # Installation
 # ------------
 
+boot_session = "erpnext_australian_localisation.boot.set_bootinfo"
 before_install = "erpnext_australian_localisation.install.before_install"
 after_install = "erpnext_australian_localisation.install.after_install"
 
@@ -187,15 +188,27 @@ doc_events = {
 		],
 	},
 	"Company": {
+		"on_update": "erpnext_australian_localisation.overrides.company.on_update",
+		"on_trash": "erpnext_australian_localisation.overrides.company.on_trash",
 		"validate": "erpnext_australian_localisation.overrides.company.validate",
 	},
+	"Transaction Deletion Record": {
+		"validate": "erpnext_australian_localisation.overrides.company.protect_tax_rules",
+	},
 	"Expense Claim": {
-		"validate": "erpnext_australian_localisation.overrides.expense_claim.validate",
+		"on_update": "erpnext_australian_localisation.overrides.expense_claim.on_update",
+		"before_submit": "erpnext_australian_localisation.overrides.expense_claim.before_submit",
 		"on_cancel": "erpnext_australian_localisation.overrides.invoices.on_cancel",
 	},
 	"Payment Entry": {
 		"on_submit": "erpnext_australian_localisation.overrides.payment_entry.on_submit",
 		"on_update": "erpnext_australian_localisation.overrides.payment_entry.on_update",
+	},
+	"Supplier": {
+		"validate": "erpnext_australian_localisation.overrides.bank_details_validation.validate_party"
+	},
+	"Employee": {
+		"validate": "erpnext_australian_localisation.overrides.bank_details_validation.validate_party"
 	},
 	"Bank Account": {
 		"validate": "erpnext_australian_localisation.overrides.bank_details_validation.bank_account_validation"
@@ -208,7 +221,9 @@ doc_events = {
 # Scheduled Tasks
 # ---------------
 
-scheduler_events = {}
+scheduler_events = {
+	"monthly": ["erpnext_australian_localisation.tasks.bas_report.create_scheduled_bas_reports"],
+}
 
 # Testing
 # -------
