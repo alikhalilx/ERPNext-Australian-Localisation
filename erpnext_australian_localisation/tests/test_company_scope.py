@@ -11,6 +11,7 @@ from erpnext_australian_localisation.erpnext_australian_localisation.page.paymen
 	get_unpaid_entries,
 )
 from erpnext_australian_localisation.overrides.bank_details_validation import bank_account_validation
+from erpnext_australian_localisation.overrides.bank_statement_import import after_save
 from erpnext_australian_localisation.overrides.company import is_enabled
 from erpnext_australian_localisation.overrides.invoices import before_submit, on_cancel
 from erpnext_australian_localisation.tasks.bas_report import create_scheduled_bas_reports
@@ -103,6 +104,21 @@ class TestCompanyScope(IntegrationTestCase):
 		on_cancel(frappe._dict(doctype="Sales Invoice", name="SCOPE-1", company=company), None)
 		self.assertFalse(frappe.db.exists("AU BAS Entry", "scope-sale"))
 		self.assertTrue(frappe.db.exists("AU BAS Entry", "scope-purchase"))
+
+	def test_import_requires_an_enabled_book_and_its_bank_account(self):
+		company = frappe.get_doc("Company", "_Test AU Company")
+		company.enable_australian_localisation = 0
+		company.save()
+		doc = frappe._dict(
+			company=company.name, bank_account="_Unrelated Bank", bs_import_file="synthetic.csv"
+		)
+		after_save(doc)
+		company.enable_australian_localisation = 1
+		company.save()
+		with self.assertRaisesRegex(frappe.ValidationError, "Bank Account must belong"):
+			after_save(doc)
+		company.enable_australian_localisation = 0
+		company.save()
 
 	def test_post_and_cancel_sales_invoices(self):
 		company = frappe.get_doc("Company", "_Test AU Company")
