@@ -5,9 +5,12 @@ from erpnext_australian_localisation.erpnext_australian_localisation.doctype.pay
 	is_payment_entry_references_exists,
 	update_on_payment_entry_updation,
 )
+from erpnext_australian_localisation.overrides.company import is_enabled
 
 
 def on_submit(doc, event):
+	if not is_enabled(doc.company):
+		return
 	payment_batch = frappe.db.get_value(
 		"Payment Batch Item", {"payment_entry": doc.name, "docstatus": 0}, "parent"
 	)
@@ -28,7 +31,7 @@ def on_update(doc, event):
 	Next, check whether any Payment Entry References included in this Payment Entry is already present in any other Payment Entry.
 	If it is not linked, check whether the Payment Entry References included here is not linked to any other Payment Batch Invoice
 	"""
-	if doc.payment_type == "Pay":
+	if doc.payment_type == "Pay" and is_enabled(doc.company):
 		payment_batch = frappe.db.get_value("Payment Batch Item", {"payment_entry": doc.name}, "parent")
 		if payment_batch:
 			if doc.has_value_changed("paid_from"):

@@ -10,9 +10,24 @@ from frappe.model.document import Document
 from erpnext_australian_localisation.erpnext_australian_localisation.doctype.payment_batch.aba_file_generator import (
 	generate_aba_file,
 )
+from erpnext_australian_localisation.overrides.company import require_company_record, require_enabled
 
 
 class PaymentBatch(Document):
+	def validate(self):
+		require_enabled(self.company)
+		if self.bank_account:
+			require_company_record("Bank Account", self.bank_account, self.company)
+		for row in self.payment_created:
+			require_company_record("Payment Entry", row.payment_entry, self.company)
+		for row in self.paid_invoices:
+			if row.payment_entry:
+				require_company_record("Payment Entry", row.payment_entry, self.company)
+			if row.reference_name:
+				if row.reference_doctype not in ("Purchase Invoice", "Expense Claim"):
+					frappe.throw(_("Invalid payment reference type."))
+				require_company_record(row.reference_doctype, row.reference_name, self.company)
+
 	def on_submit(self):
 		for row in self.payment_created:
 			payment_entry = frappe.get_doc("Payment Entry", row.payment_entry)
@@ -26,6 +41,9 @@ class PaymentBatch(Document):
 
 	@frappe.whitelist()
 	def generate_bank_file(self):
+		self.check_permission("write")
+		self.reload()
+		self.validate()
 		file_name = self.name + "." + self.file_format
 		file = frappe.db.exists("File", {"file_name": file_name})
 		if file:
@@ -54,6 +72,10 @@ def get_payment_entry(doctype: str, txt: str, searchfield: str, start: int, page
 	Payment Batch's Bank Account and are in draft state, except those that are already
 	included in another Payment Batch
 	"""
+	require_enabled(filters["company"])
+	frappe.get_doc("Company", filters["company"]).check_permission("read")
+	frappe.has_permission("Payment Entry", "read", throw=True)
+	require_company_record("Bank Account", filters["bank_account"], filters["company"])
 	if filters.get("party_name"):
 		filters["party_name"] += "%"
 	else:
@@ -82,6 +104,16 @@ def update_payment_batch(source_name, target_doc=None):
 		source_name : str (PaymentEntry)
 		target_doc: str of json PaymentBatch
 	"""
+	source = frappe.get_doc("Payment Entry", source_name)
+	source.check_permission("read")
+	require_enabled(source.company)
+	if target_doc and isinstance(target_doc, (str, dict)):
+		target_doc = frappe.get_doc(frappe.parse_json(target_doc))
+	if target_doc and target_doc.doctype != "Payment Batch":
+		frappe.throw(_("Select a Payment Batch."))
+	if target_doc and target_doc.company and target_doc.company != source.company:
+		frappe.throw(_("Payment Entry belongs to a different company."))
+
 	party = frappe.db.get_value(
 		"Payment Entry",
 		source_name,
@@ -216,17 +248,18 @@ def create_payment_batch_again(doc):
 	Rework Batch
 	Amend all cancelled Payment Entry to create a new Payment Batch
 	"""
-	doc = json.loads(doc)
+	doc = frappe.get_doc("Payment Batch", frappe.parse_json(doc)["name"])
+	doc.check_permission("read")
+	require_enabled(doc.company)
 
 	pb = frappe.new_doc("Payment Batch")
-	pb.update(
-		{"bank_account": doc["bank_account"], "company": doc["company"], "posting_date": doc["posting_date"]}
-	)
+	pb.update({"bank_account": doc.bank_account, "company": doc.company, "posting_date": doc.posting_date})
 
-	for payment in doc["payment_created"]:
-		old_pe = frappe.get_doc("Payment Entry", payment["payment_entry"])
+	for payment in doc.payment_created:
+		old_pe = frappe.get_doc("Payment Entry", payment.payment_entry)
+		require_company_record("Payment Entry", old_pe.name, doc.company)
 		pe = frappe.copy_doc(old_pe)
-		pe.amended_from = payment["payment_entry"]
+		pe.amended_from = payment.payment_entry
 		pe.save()
 		update_payment_batch(pe.name, pb)
 
@@ -236,6 +269,9 @@ def create_payment_batch_again(doc):
 
 @frappe.whitelist()
 def get_missing_email_suppliers(docname: str):
+	doc = frappe.get_doc("Payment Batch", docname)
+	doc.check_permission("read")
+	require_enabled(doc.company)
 	no_email = []
 
 	payment_rows = frappe.get_all(
@@ -259,6 +295,8 @@ def get_missing_email_suppliers(docname: str):
 @frappe.whitelist()
 def send_remittance_email_from_pb(docname: str):
 	doc = frappe.get_doc("Payment Batch", docname)
+	doc.check_permission("email")
+	require_enabled(doc.company)
 
 	template = frappe.get_cached_value(
 		"AU Localisation Settings",

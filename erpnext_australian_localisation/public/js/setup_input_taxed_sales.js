@@ -1,7 +1,27 @@
 const DOCTYPE = window.cur_frm.doctype;
 
+frappe.ui.form.on(DOCTYPE, {
+	refresh: toggle_tax_fields,
+	company: toggle_tax_fields
+});
+
+async function toggle_tax_fields(frm) {
+	const show = await au_localisation.form_enabled(frm);
+	for (const [table, names] of Object.entries({
+		items: ["input_taxed", "private_use", "au_tax_code", "au_tax_description"],
+		taxes: ["au_tax_code"]
+	})) {
+		const grid = frm.fields_dict[table]?.grid;
+		for (const field of names) {
+			if (grid?.docfields.some((df) => df.fieldname === field))
+				grid.toggle_display(field, show);
+		}
+	}
+}
+
 frappe.ui.form.on(DOCTYPE + " Item", {
-	input_taxed(frm, cdt, cdn) {
+	async input_taxed(frm, cdt, cdn) {
+		if (!(await au_localisation.form_enabled(frm))) return;
 		if (cdt.includes("Sales") || cdt.includes("Delivery Note")) {
 			update_sales_item_tax_template(frm, cdt, cdn);
 		}
@@ -10,12 +30,14 @@ frappe.ui.form.on(DOCTYPE + " Item", {
 		}
 	},
 
-	private_use(frm, cdt, cdn) {
+	async private_use(frm, cdt, cdn) {
+		if (!(await au_localisation.form_enabled(frm))) return;
 		update_purchase_item_tax_template(frm, cdt, cdn);
 	}
 });
 
 function get_item_tax_template(frm, cdt, cdn) {
+	const company = frm.doc.company;
 	let item = locals[cdt][cdn];
 	if (item.item_code && item.rate) {
 		frappe.call({
@@ -33,6 +55,7 @@ function get_item_tax_template(frm, cdt, cdn) {
 				}
 			},
 			callback: function (r) {
+				if (frm.doc.company !== company) return;
 				const item_tax_template = r.message;
 				frappe.model.set_value(cdt, cdn, "item_tax_template", item_tax_template);
 			}
@@ -41,7 +64,8 @@ function get_item_tax_template(frm, cdt, cdn) {
 }
 
 function update_sales_item_tax_template(frm, cdt, cdn) {
-	var row = locals[cdt][cdn];
+	const company = frm.doc.company;
+	const row = locals[cdt][cdn];
 	if (!row.input_taxed) {
 		get_item_tax_template(frm, cdt, cdn);
 	} else {
@@ -51,13 +75,15 @@ function update_sales_item_tax_template(frm, cdt, cdn) {
 				pluck: "name"
 			})
 			.then((data) => {
+				if (frm.doc.company !== company) return;
 				frappe.model.set_value(cdt, cdn, "item_tax_template", data[0]);
 			});
 	}
 }
 
 function update_purchase_item_tax_template(frm, cdt, cdn) {
-	let row = locals[cdt][cdn];
+	const company = frm.doc.company;
+	const row = locals[cdt][cdn];
 	if (row.input_taxed && row.private_use) {
 		frappe.model.set_value(cdt, cdn, "input_taxed", 0);
 		frappe.model.set_value(cdt, cdn, "private_use", 0);
@@ -76,6 +102,7 @@ function update_purchase_item_tax_template(frm, cdt, cdn) {
 				pluck: "name"
 			})
 			.then((data) => {
+				if (frm.doc.company !== company) return;
 				frappe.model.set_value(cdt, cdn, "item_tax_template", data[0]);
 			});
 	}

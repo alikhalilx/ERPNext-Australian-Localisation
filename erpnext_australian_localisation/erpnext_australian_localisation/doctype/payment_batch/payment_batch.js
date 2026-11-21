@@ -2,7 +2,19 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Payment Batch", {
-	refresh(frm) {
+	company(frm) {
+		return frm.trigger("refresh");
+	},
+	async refresh(frm) {
+		frm.set_query("company", () => ({
+			filters: { country: "Australia", enable_australian_localisation: 1 }
+		}));
+		if (!(await au_localisation.form_enabled(frm))) {
+			frm.clear_custom_buttons();
+			frm.set_intro(__("Select a company with Australian localisation enabled."), "orange");
+			return;
+		}
+		frm.set_intro("");
 		render_preview(frm);
 		frm.trigger("send_remittance_action");
 		$('[data-fieldname="paid_invoices"]').find(".grid-remove-rows").hide();

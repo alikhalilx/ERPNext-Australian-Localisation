@@ -27,7 +27,13 @@ frappe.pages["payment-proposal"].refresh = function (wrapper) {
 				fieldtype: "Link",
 				options: "Company",
 				reqd: 1,
-				filters: { default_currency: "AUD" }
+				get_query: () => ({
+					filters: {
+						default_currency: "AUD",
+						country: "Australia",
+						enable_australian_localisation: 1
+					}
+				})
 			},
 			{
 				fieldname: "party_type",

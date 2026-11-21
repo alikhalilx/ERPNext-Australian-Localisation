@@ -6,18 +6,25 @@ from frappe import _
 from erpnext_australian_localisation.erpnext_australian_localisation.doctype.payment_batch.payment_batch import (
 	update_payment_batch,
 )
+from erpnext_australian_localisation.overrides.company import require_company_record, require_enabled
 
 
 @frappe.whitelist()
 def get_unpaid_entries(filters):
 	filters = json.loads(filters)
+	require_enabled(filters["company"])
+	frappe.get_doc("Company", filters["company"]).check_permission("read")
+	frappe.has_permission("Payment Batch", "create", throw=True)
+	reference_type = "Purchase Invoice" if filters["party_type"] == "Supplier" else "Expense Claim"
+	frappe.has_permission(reference_type, "read", throw=True)
+	filters["created_by"] = (filters.get("created_by") or "") + "%"
 
 	if filters["party_type"] == "Supplier":
 		query = get_query_for_supplier_outstanding_entries(filters)
 	else:
 		query = get_query_for_employee_outstanding_expense(filters)
 
-	data = frappe.db.sql(query, as_dict=True)
+	data = frappe.db.sql(query, filters, as_dict=True)
 
 	return data
 
@@ -26,6 +33,14 @@ def get_unpaid_entries(filters):
 def create_payment_batch(party_entries, data):
 	party_entries = json.loads(party_entries)
 	data = json.loads(data)
+	references = {"Supplier": "Purchase Invoice", "Employee": "Expense Claim"}
+	if data.get("reference_doctype") != references.get(data.get("party_type")) or not data.get(
+		"reference_doctype"
+	):
+		frappe.throw(_("Select a valid payment reference type."))
+	require_enabled(data["company"])
+	require_company_record("Bank Account", data["bank_account"], data["company"])
+	frappe.has_permission("Payment Batch", "create", throw=True)
 
 	bank_account = frappe.db.get_value("Bank Account", data["bank_account"], "account")
 	if not bank_account:
@@ -66,6 +81,7 @@ def create_payment_entry(party, data):
 	)
 
 	for i in party["entries"]:
+		require_company_record(data["reference_doctype"], i["entry_name"], data["company"])
 		row = frappe.new_doc("Payment Entry Reference")
 		row.update(
 			{
@@ -86,10 +102,10 @@ def get_query_for_supplier_outstanding_entries(filters):
 	Returns the query for getting the Purchase Invoice under some conditions specified as follows.
 	"""
 	filters["condition_based_on_due_date"] = ""
-	if filters["from_due_date"]:
-		filters["condition_based_on_due_date"] = f"and pi.due_date >= '{filters['from_due_date']}'"
-	if filters["to_due_date"]:
-		filters["condition_based_on_due_date"] += f" and pi.due_date <= '{filters['to_due_date']}'"
+	if filters.get("from_due_date"):
+		filters["condition_based_on_due_date"] = "and pi.due_date >= %(from_due_date)s"
+	if filters.get("to_due_date"):
+		filters["condition_based_on_due_date"] += " and pi.due_date <= %(to_due_date)s"
 	query = f"""
 		WITH
 		supplier AS
@@ -141,8 +157,8 @@ def get_query_for_supplier_outstanding_entries(filters):
 		WHERE
 			pi.docstatus = 1
 			and pi.outstanding_amount > 0
-			and pi.company ='{filters["company"]}'
-			and pi.owner like '{filters["created_by"]}%'
+			and pi.company =%(company)s
+			and pi.owner like %(created_by)s
 			{filters["condition_based_on_due_date"]}
 		GROUP BY s.supplier
 		"""
@@ -154,10 +170,10 @@ def get_query_for_employee_outstanding_expense(filters):
 	Returns the query for getting the Expense Claim under some conditions specified as follows.
 	"""
 	filters["condition_based_on_posting_date"] = ""
-	if filters["from_due_date"]:
-		filters["condition_based_on_posting_date"] = f"and ec.posting_date >= '{filters['from_due_date']}'"
-	if filters["to_due_date"]:
-		filters["condition_based_on_posting_date"] += f" and ec.posting_date <= '{filters['to_due_date']}'"
+	if filters.get("from_due_date"):
+		filters["condition_based_on_posting_date"] = "and ec.posting_date >= %(from_due_date)s"
+	if filters.get("to_due_date"):
+		filters["condition_based_on_posting_date"] += " and ec.posting_date <= %(to_due_date)s"
 	query = f"""
 	WITH
 		employee AS
@@ -167,7 +183,7 @@ def get_query_for_employee_outstanding_expense(filters):
 				lodgement_reference,
 				case when (NULLIF(bank_account_no,'') IS NOT NULL and NULLIF(branch_code,'') IS NOT NULL) then 1 else 0 end as is_included
 			FROM tabEmployee
-			WHERE company = '{filters["company"]}'
+			WHERE company = %(company)s
 		)
 
 		SELECT
@@ -206,8 +222,8 @@ def get_query_for_employee_outstanding_expense(filters):
 		WHERE
 			ec.docstatus = 1
 			and ec.status = 'Unpaid'
-			and ec.company ='{filters["company"]}'
-			and ec.owner like '{filters["created_by"]}%'
+			and ec.company =%(company)s
+			and ec.owner like %(created_by)s
 			{filters["condition_based_on_posting_date"]}
 		GROUP BY e.employee
 		"""

@@ -1,107 +1,20 @@
 import frappe
-import pandas as pd
+
+from erpnext_australian_localisation.overrides.company import is_enabled
 
 
 def before_submit(doc, event):
-	if doc.taxes_and_charges:
-		result = []
-		if doc.doctype in ["Sales Invoice"]:
-			tax_allocation = "Collected Sales"
-			account_type = "income_account"
-			sum_depends_on = ["gst_pay_basis", "gst_pay_amount"]
-			tax_template_doctype = "Sales Taxes and Charges Template"
-		elif doc.doctype in ["Purchase Invoice"]:
-			tax_allocation = "Deductible Purchase"
-			account_type = "expense_account"
-			sum_depends_on = ["gst_offset_basis", "gst_offset_amount"]
-			tax_template_doctype = "Purchase Taxes and Charges Template"
-
-		tax_template = frappe.db.get_value(tax_template_doctype, doc.taxes_and_charges, "title")
-
-		if doc.doctype == "Sales Invoice":
-			update_tax_code_for_sales_invoice_item(doc.items, tax_template)
-		elif doc.doctype == "Purchase Invoice":
-			update_tax_code_for_purchase_invoice_item(doc.items, tax_template)
-
-		for item in doc.items:
-			result.extend(
-				generate_bas_labels(
-					"Subjected",
-					tax_allocation,
-					item.au_tax_code,
-					item.get(account_type),
-					round(item.base_net_amount, 2),
-					sum_depends_on[0],
-				)
-			)
-
-		for tax in doc.taxes:
-			update_tax_code_for_tax(tax, tax_template)
-			tax_management = (
-				"Tax Account"
-				if frappe.db.get_value("Account", tax.account_head, "account_type") == "Tax"
-				else "Subjected"
-			)
-			result.extend(
-				generate_bas_labels(
-					tax_management,
-					tax_allocation,
-					tax.au_tax_code,
-					tax.account_head,
-					round(tax.tax_amount_after_discount_amount, 2),
-					sum_depends_on[1],
-				)
-			)
-
-		create_au_bas_entries(doc.doctype, doc.name, doc.company, doc.posting_date, result, sum_depends_on)
-
-
-# Generate BAS Labels for the given tax_allocation, au_tax_code and account
-def generate_bas_labels(tax_management, tax_allocation, au_tax_code, account, amount, amount_label):
-	res = []
-	if amount:
-		bas_labels = frappe.get_all(
-			"AU BAS Label Setup",
-			filters={
-				"tax_management": tax_management,
-				"tax_allocation": tax_allocation,
-				"tax_code": au_tax_code,
-			},
-			fields=["bas_label"],
-		)
-		for bas_label in bas_labels:
-			temp = {
-				"bas_label": bas_label.bas_label,
-				"account": account,
-				"tax_code": au_tax_code,
-				amount_label: amount,
-			}
-			res.append(temp)
-	return res
-
-
-def create_au_bas_entries(doctype, docname, company, posting_date, result, sum_depends_on):
-	"""
-	Group all the BAS Labels depending on the account and au_tax_code.
-	Then create AU BAS Entries
-	"""
-	if result:
-		result = pd.DataFrame(result)
-		cols_to_sum = [c for c in sum_depends_on if c in result.columns]
-		result = result.groupby(["bas_label", "account", "tax_code"], as_index=False)[cols_to_sum].sum()
-		bas_entries = result.to_dict(orient="records")
-		for bas_entry in bas_entries:
-			bas_doc = frappe.new_doc("AU BAS Entry")
-			bas_doc.update(
-				{
-					**bas_entry,
-					"date": posting_date,
-					"voucher_type": doctype,
-					"voucher_no": docname,
-					"company": company,
-				}
-			)
-			bas_doc.save(ignore_permissions=True)
+	if not doc.taxes_and_charges or not is_enabled(doc.company):
+		return
+	sales = doc.doctype == "Sales Invoice"
+	template_type = "Sales Taxes and Charges Template" if sales else "Purchase Taxes and Charges Template"
+	template = frappe.db.get_value(template_type, doc.taxes_and_charges, "title")
+	if sales:
+		update_tax_code_for_sales_invoice_item(doc.items, template)
+	else:
+		update_tax_code_for_purchase_invoice_item(doc.items, template)
+	for tax in doc.taxes:
+		update_tax_code_for_tax(tax, template)
 
 
 # update au_tax_code for Sales Invoice Items
@@ -152,6 +65,6 @@ def update_tax_code_for_tax(tax, tax_template):
 
 
 def on_cancel(doc, event):
-	bas_entries = frappe.get_list("AU BAS Entry", filters={"voucher_no": doc.name}, pluck="name")
-	for bas_entry in bas_entries:
-		frappe.delete_doc("AU BAS Entry", bas_entry, ignore_permissions=True)
+	frappe.db.delete(
+		"AU BAS Entry", {"company": doc.company, "voucher_type": doc.doctype, "voucher_no": doc.name}
+	)

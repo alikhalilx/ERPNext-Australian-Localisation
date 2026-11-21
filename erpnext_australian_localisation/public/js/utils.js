@@ -1,6 +1,23 @@
-window.au_localisation_settings = frappe.boot.au_localisation_settings;
-
 frappe.provide("au_localisation.abn");
+
+au_localisation.enabled = async function (company) {
+	if (!company) return false;
+	const { message } = await frappe.db.get_value("Company", company, [
+		"country",
+		"enable_australian_localisation"
+	]);
+	return (
+		message?.country === "Australia" && Boolean(Number(message.enable_australian_localisation))
+	);
+};
+
+au_localisation.form_enabled = async function (frm) {
+	const doc = frm.doc;
+	const company = doc.company;
+	return (
+		(await au_localisation.enabled(company)) && frm.doc === doc && frm.doc.company === company
+	);
+};
 
 au_localisation.abn.setup = function (frm) {
 	frm._last_abn = (frm.doc.tax_id || "").replace(/ /g, "");
@@ -18,13 +35,15 @@ au_localisation.abn.bind_events = function (frm) {
 
 	frm.fields_dict.tax_id.$wrapper
 		.find("input")
-		.off("blur")
-		.on("blur", () => {
+		.off("blur.au_localisation")
+		.on("blur.au_localisation", () => {
 			au_localisation.abn.handle_blur(frm);
 		});
 };
 
-au_localisation.abn.handle_blur = function (frm) {
+au_localisation.abn.handle_blur = async function (frm) {
+	const company = frappe.defaults.get_user_default("Company");
+	if (!frm.doc.is_verify_abn || !(await au_localisation.enabled(company))) return;
 	const tax_id = (frm.doc.tax_id || "").replace(/ /g, "");
 	if (!tax_id) {
 		au_localisation.abn.clear_tax_id_fields(frm);
@@ -36,24 +55,10 @@ au_localisation.abn.handle_blur = function (frm) {
 	frm._last_abn = tax_id;
 	au_localisation.abn.clear_tax_id_fields(frm);
 
-	if (!frm.doc.is_verify_abn) return;
-	const guid = au_localisation_settings.abn_lookup_guid;
-
-	if (!guid) {
-		frappe.msgprint(
-			__(
-				"Please enter GUID in <a href='/desk/au-localisation-settings/' target='_blank'>AU Localisation Settings</a>."
-			)
-		);
-		au_localisation.abn.clear_tax_id_fields(frm);
-		frm.set_value("is_verify_abn", 0);
-		return;
-	}
-
 	frappe
 		.call({
 			method: "erpnext_australian_localisation.overrides.abn_verification.fetch_and_update_abn",
-			args: { tax_id, guid },
+			args: { tax_id, company, party_type: frm.doctype },
 			freeze: true,
 			freeze_message: __("Validating Tax ID...")
 		})

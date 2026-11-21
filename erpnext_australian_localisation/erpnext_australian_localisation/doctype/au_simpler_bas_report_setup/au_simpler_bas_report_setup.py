@@ -6,4 +6,9 @@ from frappe.model.document import Document
 
 
 class AUSimplerBASReportSetup(Document):
-	pass
+	def validate(self):
+		from erpnext_australian_localisation.erpnext_australian_localisation.doctype.au_bas_report.au_bas_report import (
+			bas_unavailable,
+		)
+
+		bas_unavailable()

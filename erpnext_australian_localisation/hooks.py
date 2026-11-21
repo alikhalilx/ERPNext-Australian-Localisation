@@ -15,8 +15,6 @@ fixtures = [
 ]
 
 
-company_data_to_be_ignored = ["Tax Rule"]
-
 after_app_install = "erpnext_australian_localisation.install.after_app_install"
 before_app_uninstall = "erpnext_australian_localisation.uninstall.before_app_uninstall"
 
@@ -58,6 +56,7 @@ before_tests = "erpnext_australian_localisation.tests.before_tests"
 # page_js = {"page" : "public/js/file.js"}
 
 doctype_js = {
+	"Bank Account": "public/js/bank_account.js",
 	"Item": "public/js/item.js",
 	"Sales Invoice": "public/js/setup_input_taxed_sales.js",
 	"Sales Order": "public/js/setup_input_taxed_sales.js",
@@ -112,7 +111,6 @@ doctype_js = {
 # Installation
 # ------------
 
-boot_session = "erpnext_australian_localisation.boot.set_bootinfo"
 before_install = "erpnext_australian_localisation.install.before_install"
 after_install = "erpnext_australian_localisation.install.after_install"
 
@@ -189,23 +187,16 @@ doc_events = {
 		],
 	},
 	"Company": {
-		"after_insert": "erpnext_australian_localisation.overrides.company.after_insert",
-		"on_update": "erpnext_australian_localisation.overrides.company.on_update",
-		"on_trash": "erpnext_australian_localisation.overrides.company.on_trash",
+		"validate": "erpnext_australian_localisation.overrides.company.validate",
 	},
 	"Expense Claim": {
-		"before_submit": "erpnext_australian_localisation.overrides.expense_claim.before_submit",
-		"on_update": "erpnext_australian_localisation.overrides.expense_claim.on_update",
+		"validate": "erpnext_australian_localisation.overrides.expense_claim.validate",
 		"on_cancel": "erpnext_australian_localisation.overrides.invoices.on_cancel",
 	},
 	"Payment Entry": {
 		"on_submit": "erpnext_australian_localisation.overrides.payment_entry.on_submit",
 		"on_update": "erpnext_australian_localisation.overrides.payment_entry.on_update",
 	},
-	"Supplier": {
-		"validate": "erpnext_australian_localisation.overrides.bank_details_validation.validate",
-	},
-	"Employee": {"validate": "erpnext_australian_localisation.overrides.bank_details_validation.validate"},
 	"Bank Account": {
 		"validate": "erpnext_australian_localisation.overrides.bank_details_validation.bank_account_validation"
 	},
@@ -217,9 +208,7 @@ doc_events = {
 # Scheduled Tasks
 # ---------------
 
-scheduler_events = {
-	"monthly": ["erpnext_australian_localisation.tasks.bas_report.create_scheduled_bas_reports"],
-}
+scheduler_events = {}
 
 # Testing
 # -------

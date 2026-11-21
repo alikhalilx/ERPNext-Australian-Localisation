@@ -3,6 +3,8 @@ from datetime import datetime
 import frappe
 from frappe import _
 
+from erpnext_australian_localisation.overrides.bank_details_validation import validate
+
 ABA_ACCOUNT_WIDTH = 9
 
 
@@ -29,7 +31,7 @@ def generate_aba_file(payment_batch):
 		["company", "apca_number", "bank_account_no", "branch_code", "fi_abbr"],
 		as_dict=True,
 	)
-	posting_date = datetime.strptime(payment_batch.posting_date, "%Y-%m-%d")
+	posting_date = frappe.utils.getdate(payment_batch.posting_date)
 
 	# header
 	content = "0"
@@ -67,6 +69,7 @@ def generate_aba_file(payment_batch):
 			["bank_account_no", "branch_code", payment_entry.party_type.lower() + "_name"],
 			as_dict=True,
 		)
+		validate(party_account_details)
 		party_link = frappe.utils.get_link_to_form(
 			payment_entry.party_type,
 			payment_entry.party,

@@ -8,11 +8,18 @@ from dateutil.parser import parse
 from frappe import _
 from frappe.utils.file_manager import save_file
 
+from erpnext_australian_localisation.overrides.company import (
+	is_enabled,
+	require_company_record,
+	require_enabled,
+)
+
 
 def after_save(doc, methods=None):
-	if not doc.bs_import_file:
+	if not doc.bs_import_file or not is_enabled(doc.company):
 		return
 
+	require_company_record("Bank Account", doc.bank_account, doc.company)
 	bank_statement_format, currency = frappe.db.get_value(
 		"Bank Account", doc.bank_account, ["bank_statement_format", "currency"]
 	)
@@ -54,6 +61,9 @@ def download_uploaded_csv_template(bank_account: str) -> None:
 	if not bank_account:
 		frappe.throw(_("Please select Bank Account"))
 
+	bank = frappe.get_doc("Bank Account", bank_account)
+	bank.check_permission("read")
+	require_enabled(bank.company)
 	bank_statement_format = frappe.db.get_value("Bank Account", bank_account, "bank_statement_format")
 
 	if not bank_statement_format:

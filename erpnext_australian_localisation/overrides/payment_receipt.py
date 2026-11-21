@@ -4,17 +4,21 @@ from frappe import _
 from erpnext_australian_localisation.erpnext_australian_localisation.doctype.payment_batch.payment_batch import (
 	_send_remittance_email,
 )
+from erpnext_australian_localisation.overrides.company import require_enabled
+
+
+def payment_for_email(docname, party_type):
+	doc = frappe.get_doc("Payment Entry", docname)
+	doc.check_permission("email")
+	require_enabled(doc.company)
+	if doc.docstatus != 1 or doc.party_type != party_type:
+		frappe.throw(_("Select a submitted payment for the correct party type."))
+	return doc
 
 
 @frappe.whitelist()
 def check_party_email(docname: str, party_type: str):
-	# party, party_name = frappe.db.get_value("Payment Entry", docname, ["party", "party_name"])
-	entry = frappe.db.get_value(
-		"Payment Entry",
-		docname,
-		["party", "party_name"],
-		as_dict=True,
-	)
+	entry = payment_for_email(docname, party_type)
 	email = frappe.db.get_value(
 		"Contact",
 		{"link_doctype": party_type, "link_name": entry.party, "is_primary_contact": 1},
@@ -32,7 +36,7 @@ def check_party_email(docname: str, party_type: str):
 
 @frappe.whitelist()
 def send_payment_receipt(docname: str):
-	doc = frappe.get_doc("Payment Entry", docname)
+	doc = payment_for_email(docname, "Customer")
 
 	template = frappe.get_cached_value(
 		"AU Localisation Settings", "AU Localisation Settings", "payment_receipt_template"
@@ -74,6 +78,7 @@ def send_payment_receipt(docname: str):
 
 @frappe.whitelist()
 def send_remittance_email(docname: str):
+	payment_for_email(docname, "Supplier")
 	template = frappe.get_cached_value(
 		"AU Localisation Settings", "AU Localisation Settings", "remittance_advice_template"
 	)

@@ -1,4 +1,15 @@
 CUSTOM_FIELDS = {
+	"Company": [
+		{
+			"fieldname": "enable_australian_localisation",
+			"label": "Enable Australian Localisation",
+			"fieldtype": "Check",
+			"default": "0",
+			"insert_after": "country",
+			"module": "ERPNext Australian Localisation",
+			"description": "Enable Australian workflows for this accounting book.",
+		}
+	],
 	("Sales Invoice Item", "Purchase Invoice Item"): [
 		{
 			"fieldname": "au_tax_code",

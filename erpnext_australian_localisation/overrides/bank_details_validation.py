@@ -3,8 +3,10 @@ import re
 import frappe
 from frappe import _
 
+from erpnext_australian_localisation.overrides.company import is_enabled
 
-def validate(doc, event):
+
+def validate(doc):
 	if doc.get("branch_code"):
 		pattern = re.compile(r"^\d{6}$")
 		branch_code = doc.branch_code.replace("-", "")
@@ -20,7 +22,7 @@ def validate(doc, event):
 
 
 def bank_account_validation(doc, event):
-	if doc.file_format != "-None-":
+	if is_enabled(doc.company) and doc.file_format == "ABA":
 		if doc.apca_number:
 			pattern = re.compile(r"^\d{6}$")
 			if not pattern.match(doc.apca_number):
@@ -31,4 +33,4 @@ def bank_account_validation(doc, event):
 			if not pattern.match(doc.fi_abbr):
 				frappe.throw(_("Financial Institution Abbreviation must be three capital letters."))
 
-		validate(doc, event)
+		validate(doc)

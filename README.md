@@ -1,161 +1,34 @@
-## ERPNext Australian Localisation :
+# ERPNext Australian Localisation
 
-The ERPNext Australian Localisation app will install the necessary localisation functionalities for Australian business in ERPNext. This app works in line with the Australian Chart of Accounts. The features of this app are as follows:
+This branch supports per-company opt-in on ERPNext and Frappe version 16.
+It follows [Arus Australian Localisation](https://github.com/Arus-Info/ERPNext-Australian-Localisation)
+at version-16 commit `922dfd861fe48d03af19293ceea5277f68d7cb03`.
 
-1. Assist the Australian companies to get the GST postings based on the Supplier and Customer type (Local / International / Capital Goods / Non Capital Goods).
-2. Options for the companies to choose the method for BAS Reporting - Full reporting or Simpler Reporting.
-3. Generate the BAS report based on Full Reporting method with the amounts to be reported in each of the BAS Label (1A, 1B, G1 to G9 and G10 to G20).
-4. Generate the BAS report based on Simpler Reporting method with the amounts to be reported in each of the BAS Label (1A, 1B and G1).
-5. Payment Proposal functionality to match the Payment Run for local suppliers.
-6. Generate ABA (Specified by Australian Banking Association) file used to process electronic transactions for supplier payments through the internet banking system of Australian banks.
-7. Import of Bank Statements (CSV Format File) in the Bank Reconciliation function.
-8. ABN Number validation for Customer and Supplier.
+Install the app once on the site. In **Company**, set **Country** to Australia and
+select **Enable Australian Localisation** for each participating book. The
+checkbox defaults to off. It controls the app's workflows across shared tables.
 
-### Prerequisites
+Enabled companies can classify invoice lines with Australian tax codes, use
+the bank statement formats and build payment batches. Shared party records
+keep optional Australian details. The selected company governs payment
+validation, and the user's default company supplies context on shared party forms.
+Native ERPNext country setup still creates the chart of accounts and tax templates.
 
-ERPNext v16.0.0 or above
+**BAS reporting is deferred in this release.** BAS definitions remain installed.
+The scheduler and posting hooks produce zero BAS reports or entries. Cash-basis
+GST requires a separate implementation.
 
-### Installation
+## Install
 
-The AU Localisation app for ERPNext can be installed using the [bench](https://github.com/frappe/bench) CLI:
-
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app https://github.com/Arus-Info/ERPNext-Australian-Localisation.git --branch version-16
-bench install-app erpnext_australian_localisation
+```sh
+bench get-app --branch saros-version-16 https://github.com/alikhalilx/ERPNext-Australian-Localisation.git
+bench --site YOUR_SITE install-app erpnext_australian_localisation
 ```
 
-<img width="1885" height="866" alt="Readme Up1" src="https://github.com/user-attachments/assets/61e43643-ac7a-4b03-9b52-c85172cca16d" />
-
-### Features
-
-- BAS Report can be generated based on either Simpler or Full reporting method
-- Capital Goods & Non Capital Goods Supplier definition in the Supplier Master's Tax Category field
-- Import Supplier definition in the Supplier Master's Tax Category field
-- Domestic / Export Customer definition in the Customer Master's Tax Category field
-- Exempt Item definition in the Item Master's Tax tab
-- ### Full BAS Reporting Method:
-  - Sales amounts are reported in G1, G2 and G3 as per the Customer Tax Category definition
-  - Purchase amounts are reported in G10, G11 and G14 as per the Supplier Tax Category definition
-  - Input Taxed Sales and the corresponding Purchase recording to report in G4 and G13 BAS Labels
-  - Estimated Purchase for Private Use recording to report in G15 BAS Label
-  - Adjustments for Sales and Purchase to report in G7 and G18 BAS Labels
-- ### Simpler BAS Reporting Method:
-  - Sales amounts are reported in G1 based on GL Entries.
-- The final 1A and 1B label amounts will be reported to arrive at the amount business needs to pay the ATO or the amount ATO will refund the business
-- BAS reports can be generated Monthly / Quarterly
-- BAS reports (detailed information with transactional document number) can be printed in PDF format
-- Payment Proposal (Batch) generation for Supplier / Employee Payment
-- ABA File generation for the Payment Batch which can be used to upload into the online banking system for bulk payments for the suppliers / employees
-
-### Screenshots & Setup Instructions
-
-When the new company is created, please select the chart of Accounts template "Australia - Chart of Accounts with Account Numbers".
-
-<img width="914" height="796" alt="image" src="https://github.com/user-attachments/assets/145de6ce-befc-43aa-9bde-0d2c00c81cff" />
-
-For additional / new Australian companies in the existing system
-
-<img width="1388" height="381" alt="image" src="https://github.com/user-attachments/assets/e467265c-56e7-4637-bc43-d49f8b73d3a3" />
-<br><br>
-Australian Localiation Workspace - Carries the basic instructions & the functionalities offered
-<br><br>
-<img width="1612" height="869" alt="image" src="https://github.com/user-attachments/assets/4fbb1c1e-94fe-4d27-8b11-130cd90c3b87" />
-<br><br>
-<img width="1618" height="865" alt="image" src="https://github.com/user-attachments/assets/34046ce9-6ba9-4c9b-bb6e-a3632ce3184f" />
-<br><br>
-<ins>AU Localisation Settings:</ins> The frequency of BAS report submission can be changed from Monthly to Quarterly only when there is no open BAS report is available in the system. Also the BAS Reporting Method (Full/Simpler) is defined on the below page.
-<br><br>
-<img width="1636" height="499" alt="image" src="https://github.com/user-attachments/assets/94de5c70-d96e-4e44-9f27-a3a2cfafb9cb" />
-<br><br>
-In case of Simpler BAS Reporting method to be used, the Account setup for BAS labels are available in Simpler BAS Report Setup.
-<br><br>
-<img width="1719" height="676" alt="image" src="https://github.com/user-attachments/assets/f23eba75-4b09-4696-84e2-5df64ce21545" />
-<br><br>
-<ins>Glimpse of the BAS Report:</ins>
-<br><br>
-
-**Simpler BAS Report**
-<br><br>
-<img width="1639" height="832" alt="image" src="https://github.com/user-attachments/assets/6944f69a-0c48-4ad5-83bc-f74796afc6c0" />
-<br><br>
-
-**Full BAS Report**
-<br><br>
-<img width="1344" height="889" alt="image" src="https://github.com/user-attachments/assets/6d17466e-3175-4f65-a91a-6c200cbaefa8" />
-<br><br>
-<img width="1346" height="889" alt="image" src="https://github.com/user-attachments/assets/8751e178-512d-4ee2-85d6-b36da3a1e54d" />
-<br><br>
-Printable format of the BAS Report - Please print in Landspcape orientation for better readability
-<br><br>
-<img width="1648" height="858" alt="image" src="https://github.com/user-attachments/assets/0caef4f3-91e2-4ee6-9ff6-457b4f00ec5a" />
-<br><br>
-<img width="1231" height="731" alt="image" src="https://github.com/user-attachments/assets/d5f8dedd-a621-48cb-b74a-386f6e048d8e" />
-<br><br>
-<ins>Setup for ABA file generation:</ins>
-<br><br>
-Company Bank Account Setup - Below information are mandatory for ABA file generation
-<br><br>
-<img width="1390" height="625" alt="image" src="https://github.com/user-attachments/assets/6ad410fc-d559-455a-a308-4339d535f633" />
-<img width="1313" height="616" alt="image" src="https://github.com/user-attachments/assets/04b97a3f-a441-4ae7-93f5-face25067046" />
-<br><br>
-For every suppliers where ABA file needs to be generated, the below information are mandatory. The Lodgement Reference entered on the supplier master comes as default reference in the Payment Batch. But this can be overriden in the Payment batch.
-<br><br>
-<img width="1395" height="787" alt="image" src="https://github.com/user-attachments/assets/032a9b59-bc85-4aef-944a-b36a471f4aea" />
-<br><br>
-<ins>Payment Proposal Functionality</ins>: This functionality is equivalent to Payment Run process to generate bulk payments. This functionality allows the user to filter the documents based on Due / Posting Date & the document created User.
-<br><br>
-<img width="1670" height="816" alt="image" src="https://github.com/user-attachments/assets/80bf62b1-7c00-4b48-83aa-84fcd1d761b5" />
-<br><br>
-<img width="1512" height="873" alt="image" src="https://github.com/user-attachments/assets/dc3033df-3aa1-48f3-9b07-534a5b4a48cd" />
-<br><br>
-Alternate option of creating a Payment Batch without using Payment Proposal functionality: Using this functionality, the Payment Batch is manually created and the Payments which are in Draft status can be pulled into the Payment Batch for ABA file generation.
-<br><br>
-<img width="1479" height="400" alt="image" src="https://github.com/user-attachments/assets/b2f7deea-5585-4c01-9fd8-065bac2065d8" />
-<br><br>
-<img width="1540" height="869" alt="image" src="https://github.com/user-attachments/assets/a9626cf1-8826-4f87-85d6-e26d4e68befa" />
-<br><br>
-ABA File generation functionality from the Payment Batch screen:
-<br><br>
-<img width="1520" height="882" alt="image" src="https://github.com/user-attachments/assets/7ca8c0ec-305a-44e1-936c-1737582bb392" />
-<br><br>
-<ins>ABN Validation:</ins>
-<br><br>
-GUID setup – Below information is mandatory for ABN Validation for Customers and Suppliers.
-<br><br>
-<img width="1896" height="682" alt="GUID Up" src="https://github.com/user-attachments/assets/4bbf0230-8685-44a3-b403-59f3a8b2b2b1" />
-<br><br>
-To get the GUID for your company, please apply it in ABR – Australian Business Register using this link [Click Here](https://abr.business.gov.au/Tools/WebServicesAgreement).
-<br><br>
-Enter the ABN number in the Tax ID field and click on save.
-<br><br>
-<img width="1619" height="519" alt="ABN Up 1" src="https://github.com/user-attachments/assets/9475eece-14bc-44e6-9c79-7824176cd901" />
-<br><br>
-Once you have entered the ABN number in the Tax ID field, a Pop-up message will show the ABN Information. Click “OK”.
-<br><br>
-<img width="1377" height="811" alt="ABN Up2" src="https://github.com/user-attachments/assets/a4ae0dde-9ade-4030-bc74-085a5ba0324f" />
-<br><br>
-The above ABN information will be shown in both Customer and Supplier master.
-<br><br>
-<img width="1623" height="707" alt="ABN Up3" src="https://github.com/user-attachments/assets/a86666e4-2241-4a0f-b824-a8f3723d6060" />
-<br><br>
-<ins>Bank Statement (Compatible for AU Banks CSV format) Import Functionality:</ins>
-<br><br>
-Bank Statement format setup – Below information is mandatory for importing the Bank Statement into the system. Please select your Bank in the field shown below. Currently all the big four Banks’ statement format is compatible with ERPNext’s AU Localisation app.
-<br><br>
-<img width="1898" height="756" alt="BSI 1 New" src="https://github.com/user-attachments/assets/bfed2df5-5495-456b-9fe4-3fb1625db600" />
-<br><br>
-Below is the sample screenshot from NAB to download the CSV format of the Bank Statement. Please use similar options to download the CSV format of the bank statement of your banking online portal.
-<br><br>
-<img width="1363" height="771" alt="BSI Func 2" src="https://github.com/user-attachments/assets/7acacded-8687-44b9-9ce1-94566afea0d7" />
-<br><br>
-Attach the CSV format bank statement file downloaded from the bank portal as detailed in the previous step
-<br><br>
-<img width="1894" height="478" alt="BSI Up3" src="https://github.com/user-attachments/assets/b989c5d9-1c77-4a62-9ce7-975139bb6965" />
-<br><br>
-Once the attachment is imported, click on Start Import. This will convert the Bank statement CSV file to the ERPNext compatible format in the background and the transactions will be imported.
-<br><br>
-<img width="1898" height="758" alt="BSI Up4" src="https://github.com/user-attachments/assets/88c255ad-e7ef-4bda-aefa-f05af541d806" />
+Review upstream version-16 changes and run the schema and integration tests before deployment.
+The fork adds one stored Company checkbox to the upstream schema.
+Publish the tested revision on both saros-version-16 and the fork's version-16 branch.
+The inherited workflow runs on version-16 and uses that branch for Frappe and ERPNext.
 
 ### License
 

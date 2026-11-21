@@ -1,10 +1,15 @@
 frappe.ui.form.on("Employee", {
-	refresh(frm) {
-		set_bank_account_description(frm);
+	async refresh(frm) {
+		const enabled = await au_localisation.form_enabled(frm);
+		frm.toggle_display("section_break_bank_details", enabled);
+		if (enabled) set_bank_account_description(frm);
 	},
 
-	bank_account_no(frm) {
-		set_bank_account_description(frm);
+	company(frm) {
+		return frm.trigger("refresh");
+	},
+	async bank_account_no(frm) {
+		if (await au_localisation.form_enabled(frm)) set_bank_account_description(frm);
 	}
 });
 

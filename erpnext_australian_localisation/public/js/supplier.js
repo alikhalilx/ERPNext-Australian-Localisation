@@ -2,11 +2,17 @@ frappe.provide("au_localisation.abn");
 
 frappe.ui.form.on("Supplier", {
 	country(frm) {
-		frm.set_value("is_allowed_in_pp", frm.doc.country === "Australia" ? 1 : 0);
+		return frm.trigger("refresh");
 	},
-	refresh(frm) {
-		au_localisation.abn.setup(frm);
-		set_bank_account_description(frm);
+	async refresh(frm) {
+		const enabled = await au_localisation.enabled(frappe.defaults.get_user_default("Company"));
+		frm.toggle_display("section_break_abn", enabled);
+		frm.fields_dict.tax_id?.$wrapper.find("input").off("blur.au_localisation");
+		if (enabled) au_localisation.abn.setup(frm);
+		frm.toggle_display(
+			"section_break_au_localisation",
+			enabled && frm.doc.country === "Australia"
+		);
 	},
 	bank_account_no(frm) {
 		set_bank_account_description(frm);
@@ -26,9 +32,12 @@ frappe.ui.form.on("Supplier", {
 		au_localisation.abn.handle_blur(frm);
 	},
 
-	validate(frm) {
-		frm.fields_dict.tax_id.$wrapper.find("input").off("blur");
-		if (frm._is_abn_changed) {
+	async validate(frm) {
+		if (
+			frm.doc.is_verify_abn &&
+			frm._is_abn_changed &&
+			(await au_localisation.enabled(frappe.defaults.get_user_default("Company")))
+		) {
 			frappe.validated = false;
 			frm._last_abn = null;
 			au_localisation.abn.handle_blur(frm);
